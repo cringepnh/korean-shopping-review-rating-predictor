@@ -1,0 +1,46 @@
+{
+  "approach": "ordinal",
+  "model_name": "monologg/koelectra-base-v3-discriminator",
+  "best_val_mae": 1.288840262582057,
+  "epochs_run": 5,
+  "batch_size": 16,
+  "learning_rate": 2e-05,
+  "quick_mode": false,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 9598,
+      "train_loss": 1.7126157148423014,
+      "val_loss": 1.6003689557745566,
+      "val_mae": 1.4430551213921017
+    },
+    {
+      "epoch": 2,
+      "global_step": 19196,
+      "train_loss": 1.5402111636647995,
+      "val_loss": 1.5549361996443505,
+      "val_mae": 1.288840262582057
+    },
+    {
+      "epoch": 3,
+      "global_step": 28794,
+      "train_loss": 1.4406369831311758,
+      "val_loss": 1.6341734638037229,
+      "val_mae": 1.311816192560175
+    },
+    {
+      "epoch": 4,
+      "global_step": 38392,
+      "train_loss": 1.4285926389105525,
+      "val_loss": 1.6372355149663511,
+      "val_mae": 1.2985828904866104
+    },
+    {
+      "epoch": 5,
+      "global_step": 47990,
+      "train_loss": 1.4052607882171602,
+      "val_loss": 1.666345580389093,
+      "val_mae": 1.3000416796915704
+    }
+  ]
+}

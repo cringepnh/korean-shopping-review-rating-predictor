@@ -1,0 +1,46 @@
+{
+  "approach": "regression",
+  "model_name": "monologg/koelectra-base-v3-discriminator",
+  "best_val_mae": 4.420652287173075,
+  "epochs_run": 5,
+  "batch_size": 16,
+  "learning_rate": 2e-05,
+  "quick_mode": false,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 9598,
+      "train_loss": 31.234097006955118,
+      "val_loss": 31.234031467769647,
+      "val_mae": 4.420652287173075
+    },
+    {
+      "epoch": 2,
+      "global_step": 19196,
+      "train_loss": 31.234097006955118,
+      "val_loss": 31.234031467769647,
+      "val_mae": 4.420652287173075
+    },
+    {
+      "epoch": 3,
+      "global_step": 28794,
+      "train_loss": 31.234097006955118,
+      "val_loss": 31.234031467769647,
+      "val_mae": 4.420652287173075
+    },
+    {
+      "epoch": 4,
+      "global_step": 38392,
+      "train_loss": 31.234097006955118,
+      "val_loss": 31.234031467769647,
+      "val_mae": 4.420652287173075
+    },
+    {
+      "epoch": 5,
+      "global_step": 47990,
+      "train_loss": 31.234097006955118,
+      "val_loss": 31.234031467769647,
+      "val_mae": 4.420652287173075
+    }
+  ]
+}
