@@ -27,3 +27,6 @@ models/*/training_complete.json
 *.swp
 Thumbs.db
 .DS_Store
+
+# ── Upload scripts (may contain tokens) ──
+upload_to_hf.py
