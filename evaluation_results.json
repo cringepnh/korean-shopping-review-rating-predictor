@@ -1,6 +1,12 @@
 {
   "task": "Naver Shopping review rating prediction",
   "base_checkpoint": "monologg/koelectra-base-v3-discriminator",
+  "ratings": [
+    1,
+    2,
+    4,
+    5
+  ],
   "source_sha256": "dc4d1aca0a148671cbe80bcb81962eee297370acab42be93c1617ce9336479c0",
   "split_manifest": {
     "source_sha256": "dc4d1aca0a148671cbe80bcb81962eee297370acab42be93c1617ce9336479c0",

@@ -211,6 +211,12 @@ def main() -> None:
     payload = {
         "task": "Naver Shopping review rating prediction",
         "base_checkpoint": "monologg/koelectra-base-v3-discriminator",
+        # upload_to_hub.py checks this list before publishing (refuses to
+        # push a model with unexpected rating classes). An earlier rewrite of
+        # this payload dropped the field entirely, which made that safety
+        # check fail closed (good) rather than silently pass (bad) -- but it
+        # needs to actually be here for a legitimate upload to succeed.
+        "ratings": list(VALID_RATINGS),
         "source_sha256": split_manifest["source_sha256"],
         "split_manifest": split_manifest,
         "training": load_ce_training_metadata(),
