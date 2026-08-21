@@ -1,0 +1,60 @@
+{
+  "task": "Naver Shopping review rating classification",
+  "method": "4-class classification with cross-entropy",
+  "ratings": [1, 2, 4, 5],
+  "base_checkpoint": "monologg/koelectra-base-v3-discriminator",
+  "source_sha256": "dc4d1aca0a148671cbe80bcb81962eee297370acab42be93c1617ce9336479c0",
+  "split_manifest": {
+    "source_sha256": "dc4d1aca0a148671cbe80bcb81962eee297370acab42be93c1617ce9336479c0",
+    "seed": 42,
+    "split": "80/10/10 stratified after text deduplication",
+    "train_rows": 159852,
+    "validation_rows": 19982,
+    "test_rows": 19982,
+      "target_origin": "source_file",
+      "text_disjoint": true
+  },
+  "training": {
+    "best_checkpoint": "D:\\projects\\korean-shopping-review-rating-predictor\\results\\rating-classifier\\checkpoint-9992",
+    "checkpoint_reload": "explicit AutoModelForSequenceClassification.from_pretrained",
+    "epochs_requested": 3.0,
+    "global_steps": 14988,
+    "best_validation_mae": 0.38935041537383647,
+    "train_batch_size": 32,
+    "eval_batch_size": 128
+  },
+  "validation_history": [
+    {"epoch": 1, "mae": 0.39325392853568214, "rmse": 0.846194091208392, "exact_accuracy": 0.7123411069962967, "within_one_accuracy": 0.9422480232208988},
+    {"epoch": 2, "mae": 0.38935041537383647, "rmse": 0.8411520570650673, "exact_accuracy": 0.7153438094284856, "within_one_accuracy": 0.9421979781803623},
+    {"epoch": 3, "mae": 0.39225302772495246, "rmse": 0.844536510593801, "exact_accuracy": 0.7139425482934642, "within_one_accuracy": 0.9410469422480232}
+  ],
+  "test_results": {
+    "Constant: training median": {
+      "mae": 1.585927334601141,
+      "rmse": 1.818151563428318,
+      "exact_accuracy": 0.09393454108697828,
+      "within_one_accuracy": 0.5001501351216094,
+      "constant_prediction": 4.0
+    },
+    "Constant: training mean": {
+      "mae": 1.5861595813831728,
+      "rmse": 1.6454114440656586,
+      "exact_accuracy": 0.0,
+      "within_one_accuracy": 0.09393454108697828,
+      "constant_prediction": 3.226540800240222
+    },
+    "Majority rating class": {
+      "mae": 1.7734961465318786,
+      "rmse": 2.4192286788686586,
+      "exact_accuracy": 0.40621559403463114,
+      "within_one_accuracy": 0.5001501351216094,
+      "constant_prediction": 5.0
+    },
+    "Fine-tuned 4-class KoELECTRA": {
+      "mae": 0.3856470823741367,
+      "rmse": 0.8363788475439566,
+      "exact_accuracy": 0.7166449804824342,
+      "within_one_accuracy": 0.944550095085577
+    }
+  }
+}

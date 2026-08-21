@@ -1,105 +1,76 @@
 ---
-license: mit
 language:
-  - ko
+- ko
+license: mit
 library_name: transformers
-tags:
-  - korean
-  - sentiment-analysis
-  - movie-reviews
-  - koelectra
-  - ordinal-classification
-  - pytorch
-datasets:
-  - nsmc
-base_model: monologg/koelectra-base-v3-discriminator
-metrics:
-  - mae
-  - accuracy
 pipeline_tag: text-classification
+tags:
+- korean
+- shopping-reviews
+- rating-classification
+- koelectra
+metrics:
+- mae
+- rmse
+- accuracy
+base_model: monologg/koelectra-base-v3-discriminator
 ---
 
-# Korean Movie Review Rating Predictor 🎬
+# Korean Shopping Review Rating Classifier
 
-Predict the score (1–10) a viewer would give a Korean movie based on their review text.
-
-Fine-tuned from [`monologg/koelectra-base-v3-discriminator`](https://huggingface.co/monologg/koelectra-base-v3-discriminator) using ordinal classification (10-class softmax) on 153k Korean movie reviews from the [NSMC dataset](https://github.com/e9t/nsmc).
+Four-class classifier for real Korean Naver Shopping ratings **1, 2, 4, and
+5**. This is not a movie model. Rating 3 is absent
+from the source dataset, so the model cannot predict it.
 
 ## Results
 
-| Metric | Value |
-|--------|-------|
-| **MAE** | **1.29** |
-| **RMSE** | **2.24** |
-| **Accuracy ±1** | **79.98%** |
+All rows use the same deterministic 19,982-review test split.
 
-> Evaluated on 19,195 held-out test samples.
+| System | Prediction | MAE | RMSE | Exact accuracy | Within ±1 |
+|---|---:|---:|---:|---:|---:|
+| Constant: training median | 4.0000 | 1.5859 | 1.8182 | 9.39% | 50.02% |
+| Constant: training mean | 3.2265 | 1.5862 | 1.6454 | 0.00% | 9.39% |
+| Majority rating class | 5 | 1.7735 | 2.4192 | 40.62% | 50.02% |
+| Fine-tuned 4-class KoELECTRA | — | **0.3856** | **0.8364** | **71.66%** | **94.46%** |
 
-## Usage
+The best checkpoint is epoch 2, selected on validation MAE (0.3894). Epoch 3
+was slightly worse. Test was evaluated only after checkpoint selection.
+
+## Data and provenance
+
+Source: [`bab2min/corpus` Naver Shopping sentiment
+file](https://github.com/bab2min/corpus/blob/master/sentiment/naver_shopping.txt).
+The upstream repository declares the corpus Public Domain.
+
+Pinned source SHA-256:
+`dc4d1aca0a148671cbe80bcb81962eee297370acab42be93c1617ce9336479c0`
+
+The source contains 200,000 real source-file ratings. After excluding all 184
+rows associated with 92 identical texts that have conflicting ratings, the
+splits are 159,852 train / 19,982 validation / 19,982 test. Targets are never
+derived from sentiment labels or generated synthetically.
+
+## Use
 
 ```python
 import torch
-from transformers import ElectraModel, ElectraTokenizer
-import torch.nn as nn
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-# 1. Define the model architecture (must match training)
-class KoELECTRAOrdinalClassifier(nn.Module):
-    def __init__(self, model_name, num_classes=10):
-        super().__init__()
-        self.electra = ElectraModel.from_pretrained(model_name)
-        hidden = self.electra.config.hidden_size  # 768
-        self.head = nn.Sequential(
-            nn.Dropout(0.3),
-            nn.Linear(hidden, 256),
-            nn.GELU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, num_classes),
-        )
-
-    def forward(self, input_ids, attention_mask):
-        outputs = self.electra(input_ids=input_ids, attention_mask=attention_mask)
-        cls_emb = outputs.last_hidden_state[:, 0, :]
-        return self.head(cls_emb)
-
-# 2. Load model
-MODEL_NAME = "monologg/koelectra-base-v3-discriminator"
-model = KoELECTRAOrdinalClassifier(MODEL_NAME, num_classes=10)
-model.load_state_dict(torch.load("best_model.pt", map_location="cpu"))
-model.eval()
-
-# 3. Tokenize and predict
-tokenizer = ElectraTokenizer.from_pretrained(MODEL_NAME)
-text = "정말 재미있는 영화였습니다! 배우들의 연기가 훌륭해요."
-
-enc = tokenizer(text, max_length=256, padding="max_length", truncation=True, return_tensors="pt")
-with torch.no_grad():
-    logits = model(enc["input_ids"], enc["attention_mask"])
-    probs = torch.softmax(logits, dim=1).squeeze()
-    score = int(torch.argmax(probs)) + 1  # 1-10
-
-print(f"Predicted score: {score}/10")
-print(f"Confidence: {probs[score-1]*100:.1f}%")
+model_id = "PATH_OR_HUB_ID"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForSequenceClassification.from_pretrained(model_id).eval()
+inputs = tokenizer("배송도 빠르고 제품도 정말 좋아요", return_tensors="pt", truncation=True)
+with torch.inference_mode():
+    probabilities = torch.softmax(model(**inputs).logits, dim=-1)[0]
+index = int(probabilities.argmax())
+print(model.config.id2label[index], float(probabilities[index]))
 ```
-
-## Training Details
-
-| Parameter | Value |
-|---|---|
-| Base model | `monologg/koelectra-base-v3-discriminator` |
-| Training data | 153,556 reviews |
-| Epochs | 5 (best at epoch 2) |
-| Batch size | 16 |
-| Learning rate | 2e-5 |
-| Optimizer | AdamW (weight decay 0.01) |
-| Loss | CrossEntropyLoss |
-| Hardware | NVIDIA RTX 4080 Laptop GPU |
 
 ## Limitations
 
-- **No scores 5 or 6**: NSMC removed "neutral" reviews (scores 5-8) when creating the dataset. Our mapping covers 1-4 and 7-10 only.
-- **Korean only**: The model was trained exclusively on Korean text.
-
-## Links
-
-- **GitHub**: [cringepnh/Korean-Movie-Review-Rating-Predictor](https://github.com/cringepnh/Korean-Movie-Review-Rating-Predictor)
-- **Base model**: [monologg/koelectra-base-v3-discriminator](https://huggingface.co/monologg/koelectra-base-v3-discriminator)
+- Naver Shopping domain only; not movie reviews.
+- No 3-star examples or output class.
+- Rating classes are imbalanced.
+- This uses ordinary 4-class cross-entropy; it has no order-aware loss.
+- Code is MIT; dataset licensing is the upstream repository's separate Public
+  Domain declaration.
