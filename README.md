@@ -108,6 +108,22 @@ python predict.py "배송도 빠르고 제품도 정말 좋아요"
 - `train_model.py` — baselines plus 4-class KoELECTRA fine-tuning
 - `evaluate_model.py` — saved-model and same-test baseline comparison
 - `predict.py` — inference from the standard Transformers export
+- `upload_to_hub.py` — verified model/card upload with hidden token input
+
+## Publish the trained model
+
+After revoking any old exposed token, create a new Hugging Face token with
+write access and run:
+
+```bash
+python upload_to_hub.py
+```
+
+The token is requested with hidden terminal input and is not stored in this
+repository. The script refuses to upload unless the base checkpoint, source
+hash, rating classes, metrics file, model export, and model card are present
+and consistent. Its destination is
+`cringepnh/koelectra-korean-shopping-rating`.
 
 ## Limitations
 
@@ -118,8 +134,6 @@ python predict.py "배송도 빠르고 제품도 정말 좋아요"
 - Text alone may not contain enough information to recover a user's exact
   numeric rating.
 - Metrics from one split and seed are not uncertainty estimates.
-- The local folder was renamed, but the remote GitHub repository must be
-  renamed separately by its owner before publication.
 
 Project code is MIT-licensed. Dataset licensing is separate: the upstream
 `bab2min/corpus` repository declares the corpus Public Domain. Users should
