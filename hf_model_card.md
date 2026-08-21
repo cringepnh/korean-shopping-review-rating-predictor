@@ -22,6 +22,9 @@ Four-class classifier for real Korean Naver Shopping ratings **1, 2, 4, and
 5**. This is not a movie model. Rating 3 is absent
 from the source dataset, so the model cannot predict it.
 
+Source code and full reproduction pipeline:
+[GitHub](https://github.com/cringepnh/korean-shopping-review-rating-predictor).
+
 ## Results
 
 All rows use the same deterministic 19,982-review test split.
