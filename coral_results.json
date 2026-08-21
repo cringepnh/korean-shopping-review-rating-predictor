@@ -1,0 +1,72 @@
+{
+  "method": "CORAL ordinal regression (Cao, Mirjalili & Raschka 2020)",
+  "base_checkpoint": "monologg/koelectra-base-v3-discriminator",
+  "ratings": [
+    1,
+    2,
+    4,
+    5
+  ],
+  "source_sha256": "dc4d1aca0a148671cbe80bcb81962eee297370acab42be93c1617ce9336479c0",
+  "train_seconds": 1674.0115957260132,
+  "training": {
+    "best_checkpoint": "D:\\projects\\korean-shopping-review-rating-predictor\\results\\rating-coral\\checkpoint-9992",
+    "epochs_requested": 3.0,
+    "global_steps": 14988,
+    "best_validation_mae": 0.5623060754679211,
+    "train_batch_size": 32,
+    "eval_batch_size": 128
+  },
+  "validation_history": [
+    {
+      "eval_loss": 0.4044934809207916,
+      "eval_mae": 0.5738664798318487,
+      "eval_rmse": 1.0263518199196742,
+      "eval_exact_accuracy": 0.5664097687919127,
+      "eval_within_one_accuracy": 0.9392453207887098,
+      "eval_runtime": 13.6473,
+      "eval_samples_per_second": 1464.171,
+      "eval_steps_per_second": 11.504,
+      "epoch": 1.0
+    },
+    {
+      "eval_loss": 0.3944709897041321,
+      "eval_mae": 0.5623060754679211,
+      "eval_rmse": 1.0066836995123034,
+      "eval_exact_accuracy": 0.5709638674807327,
+      "eval_within_one_accuracy": 0.9411970773696327,
+      "eval_runtime": 14.0998,
+      "eval_samples_per_second": 1417.184,
+      "eval_steps_per_second": 11.135,
+      "epoch": 2.0
+    },
+    {
+      "eval_loss": 0.39314591884613037,
+      "eval_mae": 0.5631568411570413,
+      "eval_rmse": 1.0063605145954422,
+      "eval_exact_accuracy": 0.5688619757782004,
+      "eval_within_one_accuracy": 0.9422480232208988,
+      "eval_runtime": 13.5238,
+      "eval_samples_per_second": 1477.54,
+      "eval_steps_per_second": 11.609,
+      "epoch": 3.0
+    }
+  ],
+  "bias_monotonicity": {
+    "biases": [
+      0.1244925856590271,
+      -0.11061639338731766,
+      -0.12426522374153137
+    ],
+    "monotone_decreasing": true,
+    "note": "Biases are monotonically non-increasing, confirming rank-monotone cumulative probabilities at convergence."
+  },
+  "test_results": {
+    "CORAL ordinal regression": {
+      "mae": 0.5631568411570413,
+      "rmse": 1.0050667357090801,
+      "exact_accuracy": 0.5689120208187368,
+      "within_one_accuracy": 0.941747572815534
+    }
+  }
+}

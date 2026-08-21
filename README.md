@@ -4,9 +4,10 @@ Predict one of the real ratings **1, 2, 4, or 5** from Korean Naver Shopping
 review text. This is a shopping-review project, not a movie-review project.
 
 The previous version was invalid: it mapped NSMC binary sentiment labels to
-random pseudo-ratings and misdescribed ordinary cross-entropy as order-aware. Those data,
-fallbacks, metrics, plots, and custom model artifacts have been removed. No
-target is generated from sentiment or from an RNG in this version.
+random pseudo-ratings and misdescribed ordinary cross-entropy as order-aware.
+Those data, fallbacks, metrics, plots, and custom model artifacts have been
+removed. No target is generated from sentiment or from an RNG in this
+version.
 
 ## Why this replacement dataset
 
@@ -53,25 +54,123 @@ Every data load prints the target distribution and a loud warning that rating
 
 ## Method and evaluation results
 
-The model is standard **4-class classification** over `[1, 2, 4, 5]` using
-`AutoModelForSequenceClassification` and cross-entropy. No order-aware loss or
-threshold formulation is implemented. The
-broken regression model was removed rather than presented as a comparison.
+The primary model is standard **4-class classification** over `[1, 2, 4, 5]`
+using `AutoModelForSequenceClassification` and cross-entropy. A second model,
+**CORAL ordinal regression** (Cao, Mirjalili & Raschka 2020), was trained to
+test whether treating the ratings as genuinely ordered — rather than four
+unrelated classes — improves on that. It doesn't; see
+[CORAL: an ordinal-regression comparison](#coral-an-ordinal-regression-comparison)
+for the full result and why.
 
-Every row below is evaluated on the same held-out 19,982-review test split.
+All rows below are evaluated on the same held-out 19,982-review test split,
+with 95% bootstrap confidence intervals (1,000 resamples) and quadratic
+weighted kappa (QWK, computed on rank indices {0,1,2,3} — see the note below
+the table).
 
-| System | Prediction | MAE | RMSE | Exact accuracy | Within ±1 |
+| System | MAE | RMSE | Exact accuracy | Polarity acc.¹ | QWK |
 |---|---:|---:|---:|---:|---:|
-| Constant: training median | 4.0000 | 1.5859 | 1.8182 | 9.39% | 50.02% |
-| Constant: training mean | 3.2265 | 1.5862 | 1.6454 | 0.00% | 9.39% |
-| Majority rating class | 5 | 1.7735 | 2.4192 | 40.62% | 50.02% |
-| Fine-tuned 4-class KoELECTRA | — | **0.3856** | **0.8364** | **71.66%** | **94.46%** |
+| Constant: training median | 1.5859 | 1.8182 | 9.39% | 50.02% | 0.000 |
+| Constant: training mean | 1.5862 | 1.6454 | 0.00% | 9.39% | 0.000 |
+| Majority rating class | 1.7735 | 2.4192 | 40.62% | 50.02% | 0.000 |
+| CE + argmax | 0.3856 [0.376, 0.396] | 0.8364 | **71.66%** [71.0, 72.3] | 94.46% | 0.837 [0.831, 0.843] |
+| CE + expected value | 0.4862 [0.479, 0.494] | **0.7370** | 0.01%² | 91.88% | 0.839 |
+| CE + expected value, rounded | 0.4000 [0.391, 0.410] | 0.7992 | 68.53% [67.9, 69.2] | 94.52% | 0.839 |
+| CE + median | 0.3858 [0.376, 0.396] | 0.8155 | 70.88% [70.2, 71.5] | 94.48% | **0.842** [0.837, 0.847] |
+| CORAL ordinal regression | 0.5632 [0.553, 0.575] | 1.0051 | 56.89% [56.2, 57.5] | 94.17% | 0.810 [0.805, 0.816] |
 
-The constant mean is allowed to be non-integer for MAE/RMSE, hence its exact
-accuracy is zero. The model improves MAE by 1.2003 relative to the strongest
-constant-MAE baseline (75.7% relative reduction). Epoch 2 was selected using
-validation MAE 0.3894; epoch 3 was slightly worse and was not used. Full-precision
-metrics and validation history are in `evaluation_results.json`.
+¹ "Polarity acc." replaces the earlier "within ±1" label: on this rating
+scale {1,2,4,5} with no 3-star class, `|pred-true|<=1` holds **exactly** for
+the pairs {1,2}×{1,2} and {4,5}×{4,5} — i.e. it is numerically identical to
+"predicted and true rating landed on the same side of the 2/4 gap." It is not
+a genuine ordinal-distance metric here; QWK is. This identity is locked in by
+a regression test (`tests/test_data_utils.py`), not just asserted in prose.
+
+² The continuous expected-value decoder is never exactly one of the four
+observed ratings, so its exact accuracy is ~0% by construction — the same
+reason the "constant: training mean" baseline has 0% exact accuracy. Read
+that row as an RMSE-only comparison point.
+
+Best checkpoint (CE): epoch 2, validation MAE 0.3894; epoch 3 was slightly
+worse. `evaluation_results.json` and `coral_results.json` are the
+machine-readable sources for every number above, produced end to end by
+`evaluate_model.py` — nothing here is typed in by hand.
+
+### Four decoders, one trained classifier
+
+All four CE rows above come from the **same** trained model's output
+probabilities — no retraining, just different rules for turning a probability
+distribution into a single rating (`decoding.py`). This project initially
+assumed the expected value (the distribution's mean) would minimize MAE. It
+doesn't: **the mean minimizes squared error (RMSE); the median minimizes
+absolute error (MAE)** — a standard statistical fact this project got wrong
+before checking it empirically. The table confirms the theory:
+
+- expected value **improves RMSE** over argmax (0.7370 vs 0.8364) but **makes
+  MAE worse** (0.4862 vs 0.3856);
+- the median decoder is the one that actually targets MAE, and it does — but
+  only marginally (0.3858 vs argmax's 0.3856): on this model's predictions,
+  argmax and the discrete median rarely disagree, so the "correct" decoder
+  for MAE barely moves the number in practice. Argmax remains the better
+  default here because it also has the highest exact accuracy.
+
+### Per-class breakdown (CE + argmax)
+
+| Class | Precision | Recall | F1 | Support |
+|---:|---:|---:|---:|---:|
+| 1 | 61.34% | 41.20% | 49.29% | 3,597 |
+| 2 | 67.13% | 78.85% | 72.52% | 6,391 |
+| 4 | 39.32% | **13.53%** | 20.13% | 1,877 |
+| 5 | 80.15% | 92.95% | 86.08% | 8,117 |
+
+Rating 4 (9.4% of the data, sandwiched between the much larger 2 and 5
+classes) has by far the worst recall: the model rarely predicts a 4 at all.
+See the [Limitations](#limitations) section — this is a real weakness, not
+hidden behind the aggregate MAE.
+
+## CORAL: an ordinal-regression comparison
+
+[CORAL](https://arxiv.org/abs/1901.07884) (`coral.py`) replaces the 4-way
+softmax with a single shared weight vector and three learned, rank-monotone
+bias terms, predicting cumulative probabilities P(rank > k) instead of
+per-class probabilities. It is a genuine implementation, not a relabeling of
+the same classifier: after training, the three bias terms are confirmed
+monotonically non-increasing (`[0.1245, -0.1106, -0.1243]`), which is what
+makes CORAL's rank-consistency guarantee hold rather than just assumed.
+
+**Result: CORAL is worse on every metric** — MAE 0.5632 vs. CE's 0.3856 (a
+paired-bootstrap 95% CI on the difference is [-0.187, -0.168], excluding
+zero; an exact McNemar test on row-level correctness gives p = 2.8×10⁻²⁶⁰).
+This is reported as-is rather than tuned away, because it's the more
+interesting result for understanding the model class than a tie or a small
+win would have been.
+
+**Why it loses:** CORAL's per-class recall collapses almost entirely to
+ratings 1 and 5:
+
+| Class | Precision | Recall | F1 | Support |
+|---:|---:|---:|---:|---:|
+| 1 | 35.93% | 94.41% | 52.05% | 3,597 |
+| 2 | 43.28% | **1.36%** | 2.64% | 6,391 |
+| 4 | 10.00% | **0.05%** | 0.11% | 1,877 |
+| 5 | 76.40% | 97.13% | 85.52% | 8,117 |
+
+A single shared projection direction plus three biases is enough to separate
+"clearly negative" from "clearly positive," but not enough to also carve out
+the boundary between {1,2} and between {4,5} — every rating effectively
+collapses toward the nearest extreme. The 4-class softmax, with an
+independent decision boundary per class, doesn't have that constraint. In
+short: on a 4-way scale with one deeply lopsided class (4 is 9.4% of the
+data) and a real gap in the middle (no 3-star reviews), giving up per-class
+flexibility for ordinal structure cost more than the ordinal structure
+bought back — the opposite of what CORAL is designed to win at on a densely,
+evenly populated ordinal scale.
+
+Training took 1,674 seconds (~28 min) on an RTX 4080 Laptop GPU for 3 epochs;
+best checkpoint was epoch 2 (validation MAE 0.5623). The CORAL model is
+**not** published to the Hugging Face Hub (it needs `coral.py`'s custom
+architecture to load, whereas the CE model loads with stock
+`AutoModelForSequenceClassification`); its weights and full metrics live in
+this repository (`models/rating-coral/`, `coral_results.json`).
 
 ## Reproduce
 
@@ -85,30 +184,57 @@ python download_data.py
 python prepare_data.py
 python train_model.py --baselines-only
 python train_model.py --epochs 3 --train-batch-size 32 --eval-batch-size 128
-python evaluate_model.py
+python train_coral.py --smoke-test   # verify the CORAL pipeline on a tiny slice first
+python train_coral.py --epochs 3 --train-batch-size 32 --eval-batch-size 128
+python evaluate_model.py             # regenerates evaluation_results.json end to end
+```
+
+For unit tests (no torch needed — data cleaning, decoders, CORAL rank
+encoding, bootstrap/McNemar helpers):
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
 ```
 
 The raw base checkpoint is
 [`monologg/koelectra-base-v3-discriminator`](https://huggingface.co/monologg/koelectra-base-v3-discriminator).
-The best checkpoint is selected only by validation MAE; test is evaluated after
-training. A standard Transformers export is saved under
+The best checkpoint is selected only by validation MAE; test is evaluated
+after training. A standard Transformers export is saved under
 `models/rating-classifier/`.
 
 ```bash
 python predict.py "배송도 빠르고 제품도 정말 좋아요"
+python predict.py "배송도 빠르고 제품도 정말 좋아요" --decoder median
 ```
 
-`predict.py` displays probabilities only for ratings 1, 2, 4, and 5.
+`predict.py` supports `--decoder {argmax,expected,median}` and always
+restricts output to ratings 1, 2, 4, and 5.
+
+## Try it without installing anything
+
+A Gradio demo is in `space/` (loads the published Hub model, not a local
+path), with a switch between the argmax and expected-value decoders — see
+the live Space linked from the
+[model card](https://huggingface.co/cringepnh/koelectra-korean-shopping-rating).
 
 ## Project files
 
 - `download_data.py` — real-source download, fixed-hash verification, manifest
-- `data_utils.py` — provenance assertions, distributions, and metrics
+- `data_utils.py` — provenance assertions, distributions, metrics, split-leakage check
 - `prepare_data.py` — deterministic, disjoint 80/10/10 splits
 - `train_model.py` — baselines plus 4-class KoELECTRA fine-tuning
-- `evaluate_model.py` — saved-model and same-test baseline comparison
+- `coral.py` / `ordinal_utils.py` — CORAL ordinal-regression head (the latter
+  is pure numpy, split out specifically to be unit-testable without torch)
+- `train_coral.py` — CORAL training and evaluation
+- `decoding.py` — argmax / expected-value / median decoders over one model's probabilities
+- `evaluate_model.py` — regenerates `evaluation_results.json` end to end: all
+  baselines, all decoders, CORAL comparison, CIs, QWK, per-class, confusion,
+  significance tests
+- `reporting.py` — bootstrap CI / McNemar / per-class helpers (no torch import)
 - `predict.py` — inference from the standard Transformers export
 - `upload_to_hub.py` — verified model/card upload with hidden token input
+- `tests/` — unit tests for the above (`pytest -q`, no GPU or data download needed)
 
 ## Publish the trained model
 
@@ -124,17 +250,25 @@ The official CLI stores the token in the local Hugging Face credential cache,
 not in this repository. The script refuses to upload unless the base
 checkpoint, source hash, rating classes, metrics file, model export, and model
 card are present and consistent. Its destination is
-`cringepnh/koelectra-korean-shopping-rating`.
+`cringepnh/koelectra-korean-shopping-rating` — the CE model, not CORAL (see
+above for why).
 
 ## Limitations
 
 - The domain is Naver Shopping product reviews, not movies.
 - The upstream corpus excludes 3-star reviews. Predictions are not a complete
   1–5 rating scale.
-- The class distribution is imbalanced, especially for rating 4.
+- Rating 4 (9.4% of the data) has 13.5% recall under the shipped CE+argmax
+  model — the model rarely predicts it. This is a real weakness of the
+  published model, not smoothed over by the aggregate MAE/exact-accuracy
+  numbers.
+- CORAL, this project's attempt to exploit the ratings' ordinal structure,
+  performs worse than plain 4-class classification here — see above for the
+  likely mechanism. Ordinal regression is not a free win.
 - Text alone may not contain enough information to recover a user's exact
   numeric rating.
-- Metrics from one split and seed are not uncertainty estimates.
+- Bootstrap CIs quantify sampling uncertainty on this split, not uncertainty
+  across different splits or retraining runs.
 
 Project code is MIT-licensed. Dataset licensing is separate: the upstream
 `bab2min/corpus` repository declares the corpus Public Domain. Users should

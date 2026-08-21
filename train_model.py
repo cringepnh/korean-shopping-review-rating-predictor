@@ -97,6 +97,36 @@ def predict_rating_classes(model, dataset: Dataset, tokenizer, batch_size: int) 
     return np.concatenate(predictions)
 
 
+def predict_rating_probabilities(model, dataset: Dataset, tokenizer, batch_size: int) -> np.ndarray:
+    """Softmax class probabilities, one row per example, columns ordered by
+    VALID_RATINGS (i.e. column 0 = P(rating=1), ..., column 3 = P(rating=5)).
+
+    Kept separate from predict_rating_classes (which only returns the argmax)
+    so that alternative decoders (see decoding.py) can be evaluated from the
+    same forward pass without retraining or re-running inference twice.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device).eval()
+    collator = DataCollatorWithPadding(tokenizer=tokenizer, return_tensors="pt")
+    loader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, collate_fn=collator
+    )
+    all_probabilities: list[np.ndarray] = []
+    with torch.inference_mode():
+        for batch in loader:
+            batch.pop("labels", None)
+            batch = {key: value.to(device) for key, value in batch.items()}
+            with torch.autocast(
+                device_type=device.type,
+                enabled=device.type == "cuda",
+                dtype=torch.float16,
+            ):
+                logits = model(**batch).logits
+            probabilities = torch.softmax(logits.float(), dim=-1)
+            all_probabilities.append(probabilities.cpu().numpy())
+    return np.concatenate(all_probabilities)
+
+
 def print_comparison(results: dict[str, dict[str, float]]) -> None:
     print("\n" + "=" * 91)
     print("REAL-RATING BASELINE COMPARISON — SAME HELD-OUT TEST SET")
@@ -211,6 +241,20 @@ def main() -> None:
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     best_model.save_pretrained(str(MODEL_DIR))
     tokenizer.save_pretrained(str(MODEL_DIR))
+
+    # Per-epoch validation history, sourced directly from the Trainer's own
+    # log, not typed in by hand. A previous version of this file had a
+    # validation_history block hand-edited into evaluation_results.json with
+    # broken JSON indentation; if the pipeline were rerun it would have been
+    # silently dropped because nothing here ever wrote it. Capturing it from
+    # trainer.state.log_history makes the metrics file fully regenerable by
+    # this script alone.
+    validation_history = [
+        {k: v for k, v in h.items() if k.startswith("eval_") or k == "epoch"}
+        for h in trainer.state.log_history
+        if "eval_mae" in h
+    ]
+
     payload = {
         "task": "Naver Shopping review rating classification",
         "method": "4-class classification with cross-entropy",
@@ -218,6 +262,7 @@ def main() -> None:
         "base_checkpoint": BASE_MODEL,
         "source_sha256": split_manifest["source_sha256"],
         "split_manifest": split_manifest,
+        "validation_history": validation_history,
         "training": {
             "best_checkpoint": best_checkpoint,
             "checkpoint_reload": "explicit AutoModelForSequenceClassification.from_pretrained",

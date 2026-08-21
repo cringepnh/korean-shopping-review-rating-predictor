@@ -127,6 +127,22 @@ def load_prepared_splits() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, di
     return frames[0], frames[1], frames[2], manifest
 
 
+def sets_are_disjoint(*text_sets: set) -> bool:
+    """True iff every pair of the given sets has empty intersection.
+
+    Extracted as its own function (rather than left inline in
+    prepare_data.py's main()) specifically so the train/validation/test
+    leakage check is unit-testable without going through the full real-data
+    download-and-split pipeline.
+    """
+    sets = list(text_sets)
+    for i in range(len(sets)):
+        for j in range(i + 1, len(sets)):
+            if sets[i] & sets[j]:
+                return False
+    return True
+
+
 def rating_metrics(labels: np.ndarray, predictions: np.ndarray) -> dict[str, float]:
     labels = np.asarray(labels, dtype=np.float64)
     predictions = np.asarray(predictions, dtype=np.float64)

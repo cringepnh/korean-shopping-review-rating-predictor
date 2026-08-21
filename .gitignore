@@ -16,6 +16,12 @@ data/split_manifest.json
 # Training artifacts and standard Hugging Face export
 results/
 models/rating-classifier/
+models/rating-coral/
+coral_train.log
+
+# Gradio demo runtime artifacts
+space/flagged/
+space/__pycache__/
 
 .vscode/
 .idea/

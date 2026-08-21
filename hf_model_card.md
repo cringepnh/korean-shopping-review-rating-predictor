@@ -22,22 +22,34 @@ Four-class classifier for real Korean Naver Shopping ratings **1, 2, 4, and
 5**. This is not a movie model. Rating 3 is absent
 from the source dataset, so the model cannot predict it.
 
-Source code and full reproduction pipeline:
+Source code, full reproduction pipeline, and a from-scratch CORAL
+ordinal-regression comparison (which this model outperforms — see below):
 [GitHub](https://github.com/cringepnh/korean-shopping-review-rating-predictor).
+Try it without installing anything: [Space](https://huggingface.co/spaces/cringepnh/korean-shopping-review-rating-predictor).
 
 ## Results
 
-All rows use the same deterministic 19,982-review test split.
+All rows use the same deterministic 19,982-review test split, with 95%
+bootstrap confidence intervals. This model is the **CE + argmax** row —
+loadable with stock `AutoModelForSequenceClassification`, no custom code.
 
-| System | Prediction | MAE | RMSE | Exact accuracy | Within ±1 |
-|---|---:|---:|---:|---:|---:|
-| Constant: training median | 4.0000 | 1.5859 | 1.8182 | 9.39% | 50.02% |
-| Constant: training mean | 3.2265 | 1.5862 | 1.6454 | 0.00% | 9.39% |
-| Majority rating class | 5 | 1.7735 | 2.4192 | 40.62% | 50.02% |
-| Fine-tuned 4-class KoELECTRA | — | **0.3856** | **0.8364** | **71.66%** | **94.46%** |
+| System | MAE | Exact accuracy | QWK |
+|---|---:|---:|---:|
+| Constant: training median | 1.5859 | 9.39% | 0.000 |
+| Majority rating class | 1.7735 | 40.62% | 0.000 |
+| **This model (CE + argmax)** | **0.3856** [0.376, 0.396] | **71.66%** [71.0, 72.3] | 0.837 |
+| CE + median decoder (same model, different decode rule) | 0.3858 | 70.88% | **0.842** |
+| CORAL ordinal regression (separate model, not published here) | 0.5632 | 56.89% | 0.810 |
 
-The best checkpoint is epoch 2, selected on validation MAE (0.3894). Epoch 3
-was slightly worse. Test was evaluated only after checkpoint selection.
+The best checkpoint is epoch 2, selected on validation MAE (0.3894). Full
+per-class breakdown, confusion matrices, the CORAL comparison, and the
+decoder analysis (argmax vs. expected value vs. median — an earlier version
+of this project incorrectly assumed expected value minimizes MAE; it
+minimizes RMSE instead) are in the
+[README](https://github.com/cringepnh/korean-shopping-review-rating-predictor#method-and-evaluation-results).
+
+**Known weakness:** rating 4 (9.4% of the data) has only 13.5% recall — the
+model rarely predicts it. This is not hidden by the aggregate MAE.
 
 ## Data and provenance
 
@@ -59,7 +71,7 @@ derived from sentiment labels or generated synthetically.
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-model_id = "PATH_OR_HUB_ID"
+model_id = "cringepnh/koelectra-korean-shopping-rating"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForSequenceClassification.from_pretrained(model_id).eval()
 inputs = tokenizer("배송도 빠르고 제품도 정말 좋아요", return_tensors="pt", truncation=True)
@@ -73,7 +85,12 @@ print(model.config.id2label[index], float(probabilities[index]))
 
 - Naver Shopping domain only; not movie reviews.
 - No 3-star examples or output class.
-- Rating classes are imbalanced.
-- This uses ordinary 4-class cross-entropy; it has no order-aware loss.
+- Rating 4 has 13.5% recall under this model's argmax decoder — a real
+  weakness, not smoothed over by MAE.
+- This uses ordinary 4-class cross-entropy with an argmax decoder by default.
+  A from-scratch CORAL ordinal-regression model was trained as a comparison
+  and performed *worse* (MAE 0.5632 vs. 0.3856); see the GitHub README for
+  the full result and the likely mechanism (CORAL's shared projection
+  collapses per-class recall toward the two extreme ratings).
 - Code is MIT; dataset licensing is the upstream repository's separate Public
   Domain declaration.

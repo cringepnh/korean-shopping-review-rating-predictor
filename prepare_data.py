@@ -15,6 +15,7 @@ from data_utils import (
     VALIDATION_PATH,
     load_real_reviews,
     print_target_distribution,
+    sets_are_disjoint,
 )
 
 
@@ -39,7 +40,7 @@ def main() -> None:
     train_text = set(train["review"])
     validation_text = set(validation["review"])
     test_text = set(test["review"])
-    if train_text & validation_text or train_text & test_text or validation_text & test_text:
+    if not sets_are_disjoint(train_text, validation_text, test_text):
         raise AssertionError("Prepared splits contain text leakage")
 
     for name, frame in (("TRAIN", train), ("VALIDATION", validation), ("TEST", test)):
