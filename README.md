@@ -116,13 +116,14 @@ After revoking any old exposed token, create a new Hugging Face token with
 write access and run:
 
 ```bash
+hf auth login
 python upload_to_hub.py
 ```
 
-The token is requested with hidden terminal input and is not stored in this
-repository. The script refuses to upload unless the base checkpoint, source
-hash, rating classes, metrics file, model export, and model card are present
-and consistent. Its destination is
+The official CLI stores the token in the local Hugging Face credential cache,
+not in this repository. The script refuses to upload unless the base
+checkpoint, source hash, rating classes, metrics file, model export, and model
+card are present and consistent. Its destination is
 `cringepnh/koelectra-korean-shopping-rating`.
 
 ## Limitations

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-from getpass import getpass
 from pathlib import Path
 
-from huggingface_hub import HfApi, create_repo, login
+from huggingface_hub import HfApi, create_repo, get_token
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
@@ -41,10 +40,8 @@ def upload() -> None:
     if metrics.get("ratings") != [1, 2, 4, 5]:
         raise RuntimeError("Refusing to upload a model with unexpected rating classes")
 
-    token = getpass("Hugging Face write token (input is hidden): ").strip()
-    if not token:
-        raise RuntimeError("No token supplied")
-    login(token=token)
+    if not get_token():
+        raise RuntimeError("Not logged in to Hugging Face. Run: hf auth login")
     create_repo(repo_id=FULL_REPO_ID, repo_type="model", exist_ok=True)
 
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
