@@ -1,12 +1,22 @@
 """CORAL ordinal head for the 4-class Naver Shopping rating scale.
 
-Implements Cao, Mirjalili & Raschka, "Rank Consistent Ordinal Regression for
-Neural Networks with Application to Age Estimation" (2020): a single shared
-weight vector projects the encoder's pooled representation to one logit, and
-K-1 learned bias terms produce K-1 monotonically-ordered cumulative logits
-P(rank > k). This guarantees rank-monotone probabilities by construction
-(unlike naive per-threshold binary classifiers), which is what actually
-distinguishes CORAL from just re-labeling the same 4-way softmax.
+A shared-weight CORAL-style head, after Cao, Mirjalili & Raschka, "Rank
+Consistent Ordinal Regression for Neural Networks with Application to Age
+Estimation" (2020): a single shared weight vector projects the encoder's
+pooled representation to one logit, and K-1 learned bias terms produce K-1
+cumulative logits P(rank > k).
+
+What the shared weight buys, precisely: because every threshold reuses the
+same projection, the ordering of the cumulative logits depends only on the
+ordering of the K-1 biases, which is the same for every input. Monotonicity
+therefore reduces to a condition on three numbers instead of a per-input
+property that naive independent-weight threshold classifiers can violate
+differently for each example.
+
+What it does not buy: this implementation does not reparameterize the biases
+(e.g. as a base value plus softplus increments), so descending bias order is
+not architecturally enforced. It is verified after training by
+`check_bias_monotonicity` and reported as whichever is true.
 
 VALID_RATINGS = (1, 2, 4, 5) maps to ranks (0, 1, 2, 3). The gap between rating
 2 and rating 4 (the missing 3-star class) is real: MAE below is always computed
@@ -36,7 +46,7 @@ from ordinal_utils import (  # noqa: F401
 
 
 class CoralHead(nn.Module):
-    """Shared-weight linear projection + independent monotone bias terms."""
+    """Shared-weight linear projection + K-1 independent, unconstrained biases."""
 
     def __init__(self, hidden_size: int, num_thresholds: int = NUM_THRESHOLDS):
         super().__init__()

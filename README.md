@@ -46,6 +46,17 @@ choosing one label. The resulting 199,816 unique, unambiguous reviews are split
 Every data load prints the target distribution and a loud warning that rating
 3 has zero examples. The model therefore cannot learn or emit a 3-star class.
 
+**These class priors are curated, not natural.** The upstream corpus was built
+for sentiment experiments, and its author states both design choices
+explicitly: 3-star reviews were dropped as too ambiguous to label
+positive/negative, and the remainder was sampled so that positive (4–5) and
+negative (1–2) sit close to a 1:1 ratio. The 200,000 source rows are 99,963
+positive and 100,037 negative; after cleaning, 99,943 and 99,873. Real Naver
+Shopping ratings are heavily skewed toward 5 stars, so **nothing in this
+project's class distribution should be read as an estimate of how Korean
+shoppers actually rate products.** Every number here describes performance on
+this curated distribution. See [Limitations](#limitations).
+
 | Split | Rows |
 |---|---:|
 | Train | 159,852 |
@@ -129,20 +140,30 @@ hidden behind the aggregate MAE.
 
 ## CORAL: an ordinal-regression comparison
 
-[CORAL](https://arxiv.org/abs/1901.07884) (`coral.py`) replaces the 4-way
-softmax with a single shared weight vector and three learned, rank-monotone
-bias terms, predicting cumulative probabilities P(rank > k) instead of
+A [CORAL](https://arxiv.org/abs/1901.07884)-style ordinal head (`coral.py`)
+replaces the 4-way softmax with a single shared weight vector and three
+learned bias terms, predicting cumulative probabilities P(rank > k) instead of
 per-class probabilities. It is a genuine implementation, not a relabeling of
-the same classifier: after training, the three bias terms are confirmed
-monotonically non-increasing (`[0.1245, -0.1106, -0.1243]`), which is what
-makes CORAL's rank-consistency guarantee hold rather than just assumed.
+the same classifier.
+
+**On the rank-monotonicity claim.** Sharing one projection across all three
+thresholds means the ordering of the cumulative logits depends only on the
+ordering of the three biases — the same for every input — rather than being a
+per-input property that independent-weight threshold classifiers can violate
+example by example. This implementation does **not** reparameterize the biases
+to force descending order, so monotonicity is not architecturally guaranteed;
+it is checked after training and reported either way. In this run the biases
+came out monotonically non-increasing (`[0.1245, -0.1106, -0.1243]`), so the
+rank-consistency property does hold here — verified, not assumed.
 
 **Result: CORAL is worse on every metric** — MAE 0.5632 vs. CE's 0.3856 (a
 paired-bootstrap 95% CI on the difference is [-0.187, -0.168], excluding
-zero; an exact McNemar test on row-level correctness gives p = 2.8×10⁻²⁶⁰).
-This is reported as-is rather than tuned away, because it's the more
-interesting result for understanding the model class than a tie or a small
-win would have been.
+zero; an exact McNemar test on row-level correctness gives p < 0.001). The
+CI on the difference is the informative statistic here — the exact p-value
+is far below any reporting threshold and is kept only in
+`evaluation_results.json`. This is reported as-is rather than tuned away,
+because it's the more interesting result for understanding the model class
+than a tie or a small win would have been.
 
 **Why it loses:** CORAL's per-class recall collapses almost entirely to
 ratings 1 and 5:
@@ -258,6 +279,14 @@ above for why).
 - The domain is Naver Shopping product reviews, not movies.
 - The upstream corpus excludes 3-star reviews. Predictions are not a complete
   1–5 rating scale.
+- **The corpus was sampled to keep positive (4–5) and negative (1–2) reviews
+  close to a 1:1 ratio, so its class priors do not represent the natural
+  distribution of Naver Shopping ratings.** Real e-commerce ratings are
+  strongly 5-star-skewed. A classifier trained on balanced priors is
+  miscalibrated for deployment on the true distribution: on live traffic it
+  would over-predict low ratings. Fixing this needs prior correction or
+  recalibration against a representative sample, neither of which this project
+  does.
 - Rating 4 (9.4% of the data) has 13.5% recall under the shipped CE+argmax
   model — the model rarely predicts it. This is a real weakness of the
   published model, not smoothed over by the aggregate MAE/exact-accuracy

@@ -85,6 +85,11 @@ print(model.config.id2label[index], float(probabilities[index]))
 
 - Naver Shopping domain only; not movie reviews.
 - No 3-star examples or output class.
+- **Curated class priors.** The upstream corpus dropped 3-star reviews as
+  ambiguous and sampled positive (4–5) against negative (1–2) to roughly 1:1.
+  Real Naver Shopping ratings are strongly 5-star-skewed, so this model is
+  miscalibrated for the natural distribution and will over-predict low ratings
+  on live traffic. Apply prior correction before deploying.
 - Rating 4 has 13.5% recall under this model's argmax decoder — a real
   weakness, not smoothed over by MAE.
 - This uses ordinary 4-class cross-entropy with an argmax decoder by default.
