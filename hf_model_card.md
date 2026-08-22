@@ -25,7 +25,9 @@ from the source dataset, so the model cannot predict it.
 Source code, full reproduction pipeline, and a from-scratch CORAL
 ordinal-regression comparison (which this model outperforms — see below):
 [GitHub](https://github.com/cringepnh/korean-shopping-review-rating-predictor).
-Try it without installing anything: [Space](https://huggingface.co/spaces/cringepnh/korean-shopping-review-rating-predictor).
+A Gradio demo lives in that repo's `space/` folder and loads this model
+straight from the Hub, but **there is no hosted demo** — Hugging Face requires
+a PRO subscription to run Gradio Spaces, so the demo is local-only.
 
 ## Results
 

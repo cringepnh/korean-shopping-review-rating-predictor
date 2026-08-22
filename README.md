@@ -232,12 +232,21 @@ python predict.py "배송도 빠르고 제품도 정말 좋아요" --decoder med
 `predict.py` supports `--decoder {argmax,expected,median}` and always
 restricts output to ratings 1, 2, 4, and 5.
 
-## Try it without installing anything
+## Try it locally
 
-A Gradio demo is in `space/` (loads the published Hub model, not a local
-path), with a switch between the argmax and expected-value decoders — see
-the live Space linked from the
-[model card](https://huggingface.co/cringepnh/koelectra-korean-shopping-rating).
+A Gradio demo is in `space/`, with a switch between the argmax and
+expected-value decoders. It loads the published Hub model rather than a local
+path, so it works on a clean checkout without training anything first.
+
+```bash
+pip install -r space/requirements.txt
+python space/app.py
+```
+
+**There is no hosted demo.** Hugging Face requires a PRO subscription to run
+Gradio Spaces on free CPU hardware, so the Space is not deployed. The folder
+is a complete, ready-to-deploy Space for anyone who wants to host it
+themselves.
 
 ## Project files
 
